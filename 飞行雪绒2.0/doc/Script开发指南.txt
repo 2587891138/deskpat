@@ -1,0 +1,132 @@
+飞行雪绒 Script 开发指南（LTS1.0.5pre2）
+
+一、总览
+- 主入口：`lib/core/qt_desktop_pet.py`
+- 应用编排：`lib/script/main.py`
+- 动态发现：`lib/core/plugin_registry.py`
+- 管理器目录：`lib/script/obj-*`
+- 粒子目录：`lib/script/practical/*_particle.py`
+- UI 目录：`lib/script/ui/`
+
+二、启动与自动发现
+桌宠启动时，`lib/script/main.py` 会依次完成：
+1. 初始化日志、Qt 运行环境、单实例与快捷方式
+2. 加载 GIF 与粒子覆盖层
+3. 调用 `discover_all()` 自动发现管理器与粒子
+4. 调用 `init_all_managers()` 创建管理器实例
+5. 初始化命令框、气泡、托盘、AI 相关组件
+
+扩展开发默认遵循这个发现链路，不需要手动在主入口硬编码注册。
+
+三、管理器开发
+推荐位置
+- `lib/script/obj-你的模块/manager.py`
+
+基础要求
+- 继承 `BaseManager`
+- 定义 `MANAGER_ID`
+- 定义 `DISPLAY_NAME`
+- 定义 `COMMAND_TRIGGER`
+- 定义 `COMMAND_HELP`
+- 提供 `create()` 工厂方法
+- 提供 `cleanup()` 并完成退订、资源释放
+
+当前内置管理器
+- `snow_leopard`
+- `snow_pile`
+- `sofa`
+- `mortor`
+- `clock`
+- `speaker`
+- `snowball`
+
+推荐做法
+- 需要跨模块通信时，优先发事件，不直接互相引用
+- 管理器响应 `#命令` 时，只处理自己负责的范围
+- 所有窗口、实体、线程、任务都要在 `cleanup()` 中回收
+
+四、粒子开发
+推荐位置
+- `lib/script/practical/xxx_particle.py`
+
+基础要求
+- 继承 `BaseParticleScript`
+- 使用 `@register_particle("particle_id")`
+- 定义 `PARTICLE_ID`
+- 实现 `create_particles(area_type, area_data)`
+
+粒子实例约定
+- 需要 `update()`
+- 需要 `alive`
+- 建议提供 `life` / `max_life`
+- 可选使用：
+  - `is_text`
+  - `is_line`
+  - `is_circle`
+  - `no_fade`
+
+五、输入链路
+命令输入框位于 `lib/script/ui/command_dialog.py`
+
+当前输入分流规则：
+- `/xxx` → `EventType.INPUT_COMMAND`
+- `#xxx` → `EventType.INPUT_HASH`
+- 普通文本 → `EventType.INPUT_CHAT`
+
+AI 工具调度位于 `lib/script/tool_dispatcher/dispatcher.py`，会从 `STREAM_FINAL` 中提取 `###指令###`。
+
+六、配置项落地链路
+如果新增 AI 控制面板配置，至少同步以下文件：
+- `lib/script/ui/ai_settings_panel.py`
+- `lib/script/ui/ai_settings_storage.py`
+- `lib/script/ui/ai_settings_validators.py`
+- `config/ollama_config.py`
+
+如果新增普通配置，优先放到对应的 `config/config_*.py` 或共享配置体系中，不要把运行时状态写死回源码默认值。
+
+七、运行时数据边界
+以下路径视为运行时目录：
+- `resc/user/`
+- `logs/`
+- `config/music/volume.json`
+- `config/user_scale.json`
+
+像 GSV 语音缓存这类自动生成文件，应写入 `resc/user/temp/` 这一类已忽略目录，而不是可提交源码目录。
+
+八、最小管理器模板
+```python
+from lib.core.plugin_registry import BaseManager, manager_registry
+from lib.core.event.center import get_event_center, EventType
+
+
+class DemoManager(BaseManager):
+    MANAGER_ID = "demo"
+    DISPLAY_NAME = "示例管理器"
+    COMMAND_TRIGGER = "示例"
+    COMMAND_HELP = "[数量] - 示例命令"
+
+    def __init__(self, entity=None):
+        self._entity = entity
+        self._ec = get_event_center()
+        self._ec.subscribe(EventType.INPUT_HASH, self._on_hash)
+
+    @classmethod
+    def create(cls, entity=None, **kwargs):
+        return cls(entity)
+
+    def _on_hash(self, event):
+        pass
+
+    def cleanup(self):
+        self._ec.unsubscribe(EventType.INPUT_HASH, self._on_hash)
+
+
+manager_registry.register(DemoManager.MANAGER_ID, DemoManager)
+```
+
+九、交付前自检
+- 是否完成注册
+- 是否实现完整清理
+- 是否补齐事件字段与参数校验
+- 是否更新对应文档
+- 是否确认没有引入新的运行时垃圾文件
