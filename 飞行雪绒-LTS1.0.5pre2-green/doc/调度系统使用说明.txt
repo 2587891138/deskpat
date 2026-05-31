@@ -1,0 +1,72 @@
+飞行雪绒调度系统使用说明（LTS1.0.5pre2）
+
+一、核心实现
+- 文件：`lib/core/timing/manager.py`
+- 对外入口：`lib/core/timing/__init__.py`
+- 核心类：`TimingManager`
+
+二、三套周期计时
+调度器内部维护三个独立 QTimer：
+- `TICK`：固定 50ms
+- `FRAME`：按 `frame_fps` 计算
+- `GIF_FRAME`：按 `gif_fps` 计算
+
+默认配置来自 `config/config.py` 中导出的 `ANIMATION`：
+- `frame_fps = 60`
+- `gif_fps = 16`
+
+三、周期事件
+调度器会发布：
+- `EventType.TICK`
+- `EventType.FRAME`
+- `EventType.GIF_FRAME`
+
+对应常见字段：
+- `tick_count`
+- `frame_count`
+
+四、定时任务机制
+底层接口：
+- `add_task(interval_ms, repeat=True)`
+- `remove_task(task_id)`
+- `pause_task(task_id)`
+- `resume_task(task_id)`
+- `clear_all()`
+
+实体侧常用封装：
+```python
+task_id = pet.schedule_task(callback, delay_ms=1000, repeat=False)
+pet.cancel_task(task_id)
+```
+
+执行流程
+1. 业务调用 `schedule_task()`
+2. `TimingManager.add_task()` 记录任务
+3. 到时后发布 `EventType.TIMER`
+4. 实体或管理器在对应回调中执行自己的 callback
+
+五、时间精度
+- 所有任务都按 50ms tick 对齐
+- 小于 50ms 的任务会被提升到 1 tick
+- 非 50ms 整数倍的延时会存在 tick 对齐误差
+
+例子
+- `1000ms -> 20 ticks`
+- `120ms -> 2 ticks`
+- `30ms -> 1 tick`
+
+六、全局暂停
+任务系统支持通过事件做引用计数式暂停：
+- `TIMER_PAUSE`
+- `TIMER_RESUME`
+
+特点
+- 只暂停任务系统，不暂停 `TICK / FRAME / GIF_FRAME`
+- 不同模块可通过 `source` 区分暂停来源
+- 常见场景：打开命令框或模态 UI 时暂停一部分行为任务
+
+七、开发建议
+- 高频业务优先订阅 `TICK` 或 `FRAME`，不要自己再开一套平行 QTimer
+- 在 `cleanup()` 中移除任务并退订事件
+- 对于需要高精度的逻辑，先评估 50ms tick 是否足够
+- 服务类后台逻辑（如语音预热、网络轮询）如果不依赖 UI 节拍，可以使用线程或专用等待逻辑，不必强行接入 `TimingManager`

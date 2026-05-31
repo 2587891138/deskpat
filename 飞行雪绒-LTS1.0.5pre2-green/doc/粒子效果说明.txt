@@ -1,0 +1,94 @@
+飞行雪绒粒子效果说明（LTS1.0.5pre2）
+
+一、总体说明
+- 事件入口：`EventType.PARTICLE_REQUEST`
+- 渲染层：`lib/core/qt_particle_system.py`
+- 粒子脚本发现：`lib/script/practical/manager.py`
+- 自动扫描目录：`lib/script/practical/*_particle.py`
+
+当前已注册粒子：16 个
+
+二、已注册粒子列表
+
+1. `scatter_fall`
+- 文件：`scatter_fall_particle.py`
+- 作用：主宠动作扩散落点粒子
+
+2. `pink_scatter_fall`
+- 文件：`pink_scatter_fall_particle.py`
+- 作用：主宠右键与开心动作的粉色散落粒子
+
+3. `cyan_pink_scatter_fall`
+- 文件：`cyan_pink_scatter_fall_particle.py`
+- 作用：主宠左键触发的青粉混色散落粒子
+
+4. `snow`
+- 文件：`snow_particle.py`
+- 作用：雪豹淡出、雪堆触发等场景使用的白色雪粒
+
+5. `snow_drift`
+- 文件：`snow_drift_particle.py`
+- 作用：雪豹跳跃、雪堆交互时的落雪堆积效果
+
+6. `snowball_burst`
+- 文件：`snowball_burst_particle.py`
+- 作用：雪球淡出或破碎时的轻量爆散效果
+
+7. `snowball_drift`
+- 文件：`snowball_drift_particle.py`
+- 作用：雪球落地后的轻量溅雪效果
+
+8. `burst_line`
+- 文件：`burst_line_particle.py`
+- 作用：瞬移、点击确认等场景的线性爆发效果
+
+9. `right_fade`
+- 文件：`right_fade_particle.py`
+- 作用：多类 UI 关闭或淡出时的右向漂移粒子
+
+10. `up_fade`
+- 文件：`up_fade_particle.py`
+- 作用：气泡替换内容时向上淡出
+
+11. `music_note`
+- 文件：`music_note_particle.py`
+- 作用：音乐播放中的音符粒子
+
+12. `click`
+- 文件：`click_particle.py`
+- 作用：左键点击辅助文字粒子
+
+13. `pink_click`
+- 文件：`pink_click_particle.py`
+- 作用：右键点击辅助文字粒子
+
+14. `white_pink_collision`
+- 文件：`white_pink_collision_particle.py`
+- 作用：音响与闹钟的碰撞粒子
+
+15. `collision`
+- 文件：`collision_particle.py`
+- 作用：沙发等对象的碰撞粒子
+
+16. `flicker_data`
+- 文件：`flicker_data_particle.py`
+- 作用：主宠移动与 AI 设置面板边缘闪烁特效
+
+三、统一事件格式
+```python
+Event(EventType.PARTICLE_REQUEST, {
+    "particle_id": "scatter_fall",
+    "area_type": "point",
+    "area_data": (x, y),
+})
+```
+
+区域数据格式
+- `point`: `(x, y)`
+- `rect`: `(x1, y1, x2, y2)`
+- `circle`: `(x, y, radius)`
+
+四、维护约定
+- 新增粒子后，必须同步更新本文档
+- 需要说明触发场景时，优先写“业务用途”而不是只写视觉形态
+- 若粒子数量发生变化，请同步更新 `doc/README.txt` 和 `README.md`
